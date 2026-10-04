@@ -331,6 +331,70 @@
     .billing-opt{flex:1; text-align:center;}
   }
 </style>
+
+<style id="tasklyn-modern-redesign">
+:root{
+  --ink:#0B1B3A; --ink-soft:#526B91; --paper:#F6F8FC; --paper-card:#FFFFFF;
+  --gold:#087CF0; --gold-deep:#0868D1; --sage:#16A085; --line:#E4EAF3;
+  --navy:#071735; --blue:#087CF0; --cyan:#00D5E8;
+}
+body{background:var(--paper);color:#102449;font-family:'IBM Plex Sans',sans-serif}
+#app-content{background:var(--paper)}
+.sidebar{
+  background:linear-gradient(165deg,#07152F 0%,#061A3C 72%,#08265A 100%);
+  color:#F5F8FF;padding:28px 0 20px;border-right:1px solid rgba(255,255,255,.08)
+}
+.brand{padding:0 20px 24px;justify-content:flex-start;border-bottom:1px solid rgba(255,255,255,.12)}
+.brand-logo{width:245px;max-width:100%;height:auto;object-fit:contain}
+nav{gap:7px;padding:0 14px}
+.nav-item{padding:13px 16px;border-radius:12px;color:#C6D5EE;font-size:14px}
+.nav-item:hover{background:rgba(30,133,255,.13);color:white}
+.nav-item.active{background:linear-gradient(100deg,rgba(0,142,255,.34),rgba(0,213,232,.10));color:#fff}
+.nav-item.active::before{left:-14px;top:9px;bottom:9px;width:3px;background:linear-gradient(#00D5E8,#087CF0)}
+.nav-icon{font-size:17px}
+.sidebar-foot{padding:18px 20px 0;border-top:1px solid rgba(255,255,255,.12)}
+.avatar{background:linear-gradient(135deg,#00D5E8,#087CF0);color:white}
+main{padding:38px 42px 60px;background:linear-gradient(145deg,#FAFBFE,#F3F6FB);overflow-y:auto}
+.eyebrow{color:#2D75C7;letter-spacing:.13em}
+.page-title{font-family:'Fraunces',serif;font-size:30px;color:#0B1B3A;line-height:1.13}
+.page-sub{color:#58739A}
+.btn{border-radius:12px;transition:transform .15s,box-shadow .15s,background .15s}
+.btn-primary{background:linear-gradient(105deg,#0A2A5A,#087CF0);color:white;box-shadow:0 8px 20px rgba(8,124,240,.16)}
+.btn-primary:hover{background:linear-gradient(105deg,#0A2A5A,#0069D8);transform:translateY(-1px);box-shadow:0 10px 24px rgba(8,124,240,.22)}
+.btn-ghost{background:#fff;border-color:#DDE7F4;color:#15335F}
+.stat-row{gap:16px}
+.stat-card,.panel,.doc-card,.automation-card,.plan-card{
+  background:#fff;border:1px solid #E7ECF4;border-radius:16px;
+  box-shadow:0 8px 24px rgba(18,48,92,.045)
+}
+.stat-card{padding:23px}
+.stat-label{color:#526B91}
+.stat-value{color:#0B1B3A}
+.panel{padding:24px}
+.panel-head{border-bottom:1px solid #EDF1F7;padding-bottom:14px;margin-bottom:12px}
+.panel-title{color:#102449}
+.dropzone{background:repeating-linear-gradient(135deg,#F5F9FF,#F5F9FF 12px,#F0F6FF 12px,#F0F6FF 24px);border:1.5px dashed #56A5F7;border-radius:16px}
+.dropzone-title{color:#102449}
+.dropzone-sub{color:#58739A}
+.chip.active{background:#0B1B3A;color:#fff}
+input,textarea,select{border-color:#DCE5F1!important;border-radius:10px!important}
+#auth-screen,#reset-password-screen{
+  background:#fff;box-shadow:0 18px 55px rgba(15,42,83,.10);
+  border-color:#E5ECF6!important;border-radius:18px!important
+}
+#auth-screen h2,#reset-password-screen h2{color:#0B1B3A}
+#auth-screen button[onclick="handleLogin()"],#reset-password-screen button{
+  background:linear-gradient(105deg,#0A2A5A,#087CF0)!important;border-radius:11px!important
+}
+#auth-screen a{color:#087CF0!important}
+@media(max-width:800px){
+  main{padding:24px 18px 90px}
+  .brand{display:none}
+  .sidebar{background:#071735}
+  .nav-item.active{background:rgba(8,124,240,.25)}
+}
+</style>
+
 </head>
 <body>
 
