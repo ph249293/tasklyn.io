@@ -378,7 +378,7 @@
   </div>
 </aside>
 
-<!-- Barra de conta visível só no mobile (a barra lateral vira nav inferior e esconde o sidebar-foot) -->
+<!-- Account bar visible only on mobile (the sidebar becomes bottom navigation and hides the sidebar footer) -->
 <div id="mobile-account-bar" style="display:none; flex-direction:column; align-items:flex-end; position:fixed; top:0; right:0; z-index:40; padding:10px 14px; gap:4px; background:var(--paper); border-bottom-left-radius:12px;">
   <div style="display:flex; align-items:center; gap:10px;">
     <span class="user-email-el" style="font-size:11.5px; color:var(--ink-soft); max-width:180px; overflow-wrap:break-word; word-break:break-all; white-space:normal; text-align:right; line-height:1.3;">Loading…</span>
@@ -447,11 +447,11 @@
     </div>
   </section>
 
-  <!-- DOCUMENTOS -->
+  <!-- DOCUMENTS -->
   <section class="screen" id="documentos">
     <div class="topline">
       <div>
-        <div class="eyebrow">Gestão de documents</div>
+        <div class="eyebrow">Document management</div>
         <h1 class="page-title">Documents</h1>
         <p class="page-sub">Upload any file — Tasklyn automatically organizes, names, and indexes it.</p>
       </div>
@@ -522,7 +522,7 @@
           <div class="auto-ico">◐</div>
           <div>
             <div class="auto-name">Summarize new documents</div>
-            <div class="auto-desc">Todo arquivo enviado é analisado by AI automaticamente (resumo, categoria e vencimento).</div>
+            <div class="auto-desc">Every uploaded file is automatically analyzed by AI (summary, category, and expiration date).</div>
           </div>
         </div>
         <div class="switch" data-key="resumir"></div>
@@ -533,7 +533,7 @@
           <div class="auto-ico">◷</div>
           <div>
             <div class="auto-name">Expiration alerts</div>
-            <div class="auto-desc">Mostra no Dashboard os documents com vencimento nos next 7 days.</div>
+            <div class="auto-desc">Shows documents expiring in the next 7 days on the Dashboard.</div>
           </div>
         </div>
         <div class="switch" data-key="vencimentos"></div>
@@ -702,8 +702,8 @@
       msg.textContent = 'Error: ' + err.message;
       return;
     }
-    // tenta entrar imediatamente com as mesmas credenciais.
-    // Se a confirmação por e-mail ainda estiver exigida no Supabase, isso falha
+    // Try to sign in immediately with the same credentials.
+    // This fails if email confirmation is still required in Supabase.
     // com uma mensagem clara em vez de travar a tela silenciosamente.
     try {
       await signIn(email, password);
@@ -753,7 +753,7 @@
   window.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('app-content').style.display = 'none';
 
-    // Se o link veio de um e-mail de recuperação de senha, mostra a tela de nova senha
+    // If the link came from a password recovery email, show the new password screen.
     if (window.location.hash.includes('type=recovery')) {
       document.getElementById('auth-screen').style.display = 'none';
       document.getElementById('reset-password-screen').style.display = 'flex';
@@ -802,7 +802,7 @@
     });
 
     if (!isPaid) {
-      // força a ida to tela de Plans e mostra o aviso
+      // Navigate to the Plans screen and show the notice.
       document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       document.querySelector('[data-screen="planos"]').classList.add('active');
@@ -852,7 +852,7 @@
     }
   }
 
-  // ---------------- UPLOAD DE DOCUMENTOS ----------------
+  // ---------------- UPLOAD DE DOCUMENTS ----------------
 
   document.getElementById('file-input').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
@@ -925,7 +925,7 @@
       const docs = await listDocuments();
       window._tasklynDocs = docs || [];
 
-      // Estatísticas
+      // Statistics
       const total = docs ? docs.length : 0;
       const processed = docs ? docs.filter(d => d.status === 'processed').length : 0;
       const due = docs ? docs.filter(d => d.due_date && (new Date(d.due_date) - new Date()) / 86400000 <= 7 && (new Date(d.due_date) - new Date()) >= 0).length : 0;
@@ -1079,7 +1079,7 @@
       return;
     }
     // troca de aba diretamente via classes, sem disparar um segundo clique
-    // (dois .click() em sequência podem perder a permissão do Safari to abrir o seletor de arquivo)
+    // Two consecutive .click() calls may cause Safari to lose permission to open the file picker.
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.querySelector('[data-screen="documentos"]').classList.add('active');
@@ -1156,7 +1156,7 @@
       if (link) btn.href = buildStripeLink(link);
     });
   }
-  applyBillingPeriod('monthly'); // preenche os links assim que a página carrega
+  applyBillingPeriod('monthly'); // Populate the links as soon as the page loads
 
   document.querySelectorAll('.billing-opt').forEach(function(opt){
     opt.addEventListener('click', function(){
