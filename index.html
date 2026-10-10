@@ -393,6 +393,34 @@ input,textarea,select{border-color:#DCE5F1!important;border-radius:10px!importan
   .sidebar{background:#071735}
   .nav-item.active{background:rgba(8,124,240,.25)}
 }
+
+/* Mobile top-right menu: additional shortcut to the existing navigation */
+#mobile-top-menu{display:none}
+@media(max-width:860px){
+  #mobile-top-menu{
+    display:block;position:fixed;top:calc(10px + env(safe-area-inset-top));right:12px;z-index:1000
+  }
+  #mobile-top-menu-button{
+    display:flex;align-items:center;justify-content:center;gap:7px;min-height:40px;
+    padding:9px 12px;border:1px solid #DCE5F1;border-radius:12px;background:#fff;
+    color:#0B1B3A;box-shadow:0 5px 18px rgba(11,27,58,.12);
+    font:600 13px 'IBM Plex Sans',sans-serif;cursor:pointer
+  }
+  #mobile-top-menu-panel{
+    display:none;position:absolute;top:48px;right:0;width:min(230px,calc(100vw - 24px));
+    padding:8px;background:#fff;border:1px solid #E4EAF3;border-radius:14px;
+    box-shadow:0 14px 38px rgba(11,27,58,.18)
+  }
+  #mobile-top-menu-panel.open{display:flex;flex-direction:column;gap:4px}
+  #mobile-top-menu-panel button{
+    display:block;width:100%;padding:11px 12px;border:0;border-radius:9px;
+    background:transparent;color:#17335D;text-align:left;
+    font:500 13px 'IBM Plex Sans',sans-serif;cursor:pointer
+  }
+  #mobile-top-menu-panel button:hover{background:#EEF6FF}
+  main{padding-top:72px!important}
+}
+
 </style>
 
 </head>
@@ -417,6 +445,20 @@ input,textarea,select{border-color:#DCE5F1!important;border-radius:10px!importan
   <input id="reset-password-field" type="password" placeholder="New password" style="padding:10px; border:1px solid #DEDCD2; border-radius:8px;">
   <button onclick="handleSetNewPassword()" style="padding:12px; background:#16233D; color:#fff; border:none; border-radius:8px; font-weight:600;">Save new password</button>
   <p id="reset-password-message" style="font-size:12px; color:#B4553F;"></p>
+</div>
+
+
+<div id="mobile-top-menu" aria-label="Main menu">
+  <button id="mobile-top-menu-button" type="button" aria-expanded="false" aria-controls="mobile-top-menu-panel">
+    <span aria-hidden="true">☰</span><span>Menu</span>
+  </button>
+  <div id="mobile-top-menu-panel" role="menu">
+    <button type="button" data-mobile-target="dashboard" role="menuitem">Dashboard</button>
+    <button type="button" data-mobile-target="documentos" role="menuitem">Documents</button>
+    <button type="button" data-mobile-target="chat" role="menuitem">AI Chat</button>
+    <button type="button" data-mobile-target="automacoes" role="menuitem">Automations</button>
+    <button type="button" data-mobile-target="planos" role="menuitem">Plans</button>
+  </div>
 </div>
 
 <div id="app-content">
@@ -523,8 +565,8 @@ input,textarea,select{border-color:#DCE5F1!important;border-radius:10px!importan
 
     <div class="dropzone">
       <div class="dropzone-title">Drag files here</div>
-      <div class="dropzone-sub">PDF, Word, Excel, or images · AI identifies the type and organizes them automatically</div>
-      <input type="file" id="file-input" multiple style="display:none;" accept=".pdf,.doc,.docx,.xls,.xlsx,image/*">
+      <div class="dropzone-sub">PDF, Word, Excel, PNG, JPG, JPEG, or WebP · AI reads and organizes documents automatically</div>
+      <input type="file" id="file-input" multiple style="display:none;" accept=".pdf,.doc,.docx,.xls,.xlsx,image/*,.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp">
       <button class="btn btn-ghost" onclick="document.getElementById('file-input').click()">Select files</button>
       <p id="upload-status" style="font-size:12px; color:var(--ink-soft); margin-top:10px;"></p>
     </div>
@@ -1229,6 +1271,37 @@ input,textarea,select{border-color:#DCE5F1!important;border-radius:10px!importan
       applyBillingPeriod(opt.dataset.period);
     });
   });
+</script>
+
+
+<script>
+(function(){
+  const menuButton = document.getElementById('mobile-top-menu-button');
+  const menuPanel = document.getElementById('mobile-top-menu-panel');
+  if (!menuButton || !menuPanel) return;
+
+  menuButton.addEventListener('click', function(){
+    const open = menuPanel.classList.toggle('open');
+    menuButton.setAttribute('aria-expanded', String(open));
+  });
+
+  menuPanel.querySelectorAll('[data-mobile-target]').forEach(function(item){
+    item.addEventListener('click', function(){
+      const target = item.getAttribute('data-mobile-target');
+      const navButton = document.querySelector('.nav-item[data-screen="' + target + '"]');
+      if (navButton) navButton.click();
+      menuPanel.classList.remove('open');
+      menuButton.setAttribute('aria-expanded', 'false');
+    });
+  });
+
+  document.addEventListener('click', function(event){
+    if (!event.target.closest('#mobile-top-menu')) {
+      menuPanel.classList.remove('open');
+      menuButton.setAttribute('aria-expanded', 'false');
+    }
+  });
+})();
 </script>
 
 </body>
