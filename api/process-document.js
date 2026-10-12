@@ -1,11 +1,7 @@
-// ============================================================
-// Tasklyn AI — Document Processing API
-// Supports PDF, Word, Excel, PNG, JPG, JPEG, and WebP.
-// ============================================================
-
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://pzzxmpdwtyhsmjwtapln.supabase.co';
+const MAX_TEXT_LENGTH = 12000;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -46,7 +42,9 @@ export default async function handler(req, res) {
       .from('documents')
       .createSignedUrl(filePath, 120);
 
-    if (signError) throw signError;
+    if (signError) {
+      throw signError;
+    }
 
     if (!signedUrlData?.signedUrl) {
       throw new Error('Supabase did not return a signed download URL.');
@@ -62,10 +60,12 @@ export default async function handler(req, res) {
 
     const buffer = Buffer.from(await fileResponse.arrayBuffer());
 
-    // 2. Detect document type.
-    let text = '';
+    if (buffer.length === 0) {
+      throw new Error('The uploaded file is empty.');
+    }
 
-    const lowerPath = String(filePath || '').toLowerCase();
+    // 2. Detect the document type.
+    const lowerPath = String(filePath).toLowerCase();
     const normalizedFileType = String(fileType || '').toLowerCase();
 
     const isPDF =
@@ -85,10 +85,7 @@ export default async function handler(req, res) {
 
     const isImage =
       normalizedFileType.startsWith('image/') ||
-      lowerPath.endsWith('.png') ||
-      lowerPath.endsWith('.jpg') ||
-      lowerPath.endsWith('.jpeg') ||
-      lowerPath.endsWith('.webp');
+      /\.(png|jpe?g|webp)$/i.test(lowerPath);
 
     let imageMediaType = null;
 
@@ -98,8 +95,7 @@ export default async function handler(req, res) {
     ) {
       imageMediaType = 'image/png';
     } else if (
-      lowerPath.endsWith('.jpg') ||
-      lowerPath.endsWith('.jpeg') ||
+      /\.(jpg|jpeg)$/i.test(lowerPath) ||
       normalizedFileType === 'image/jpeg' ||
       normalizedFileType === 'image/jpg'
     ) {
@@ -113,72 +109,118 @@ export default async function handler(req, res) {
 
     if (isImage && !imageMediaType) {
       throw new Error(
-        'Unsupported image format. Tasklyn supports PNG, JPG, JPEG, and WebP images.'
+        'Unsupported image format. Supported formats: PNG, JPG, JPEG, and WebP.'
       );
     }
 
-    // 3. Extract text from PDF, Word, or Excel.
-    if (!isImage) {
-      if (isPDF) {
-        // Compatible with pdf-parse v1.x.
-        try {
-          const pdfModule = await import('pdf-parse');
-          const pdfParse = pdfModule.default || pdfModule;
-
-          if (typeof pdfParse !== 'function') {
-            throw new Error(
-              'The installed pdf-parse version does not expose the expected API.'
-            );
-          }
-
-          const parsed = await pdfParse(buffer, {
-            max: 0
-          });
-
-          text = String(parsed?.text || '').trim();
-
-          if (!text) {
-            throw new Error(
-              'No selectable text was found in this PDF. It may be scanned or image-based.'
-            );
-          }
-        } catch (pdfError) {
-          console.error(
-            'Tasklyn PDF extraction failed:',
-            pdfError
-          );
-
-          throw new Error(
-            'Could not read this PDF automatically: ' +
-            (pdfError?.message || 'Unknown PDF parsing error')
-          );
-        }
-      } else if (isWord) {
-        const mammoth = await import('mammoth');
-
-        const result = await mammoth.extractRawText({
-          buffer
-        });
-
-        text = result.value || '';
-      } else if (isExcel) {
-        const XLSX = await import('xlsx');
-
-        const workbook = XLSX.read(buffer, {
-          type: 'buffer'
-        });
-
-        text = workbook.SheetNames
-          .map(name =>
-            XLSX.utils.sheet_to_csv(workbook.Sheets[name])
-          )
-          .join('\n');
-      }
-
-      text = String(text).trim().slice(0, 12000);
+    if (!isPDF && !isWord && !isExcel && !isImage) {
+      throw new Error(
+        'Unsupported file format. Supported formats: PDF, DOCX, XLS, XLSX, PNG, JPG, JPEG, and WebP.'
+      );
     }
 
-    // 4. Initialize analysis results.
+    // 3. Extract text from documents.
+    let text = '';
+
+    if (isPDF) {
+      // Use PDF.js instead of pdf-parse to extract PDF text.
+      let pdf = null;
+
+      try {
+        const pdfjs = await import('pdfjs-dist/legacy/build/pdf.js');
+
+        const loadingTask = pdfjs.getDocument({
+          data: new Uint8Array(buffer),
+          useSystemFonts: true,
+          isEvalSupported: false
+        });
+
+        pdf = await loadingTask.promise;
+
+        const pages = [];
+        let characterCount = 0;
+
+        for (
+          let pageNumber = 1;
+          pageNumber <= pdf.numPages && characterCount < MAX_TEXT_LENGTH;
+          pageNumber++
+        ) {
+          const page = await pdf.getPage(pageNumber);
+          const content = await page.getTextContent();
+
+          const pageText = content.items
+            .map(item => {
+              if (typeof item.str === 'string') {
+                return item.str;
+              }
+
+              return '';
+            })
+            .join(' ');
+
+          pages.push(pageText);
+          characterCount += pageText.length;
+
+          if (typeof page.cleanup === 'function') {
+            page.cleanup();
+          }
+        }
+
+        text = pages.join('\n').trim().slice(0, MAX_TEXT_LENGTH);
+
+        if (!text) {
+          throw new Error(
+            'No selectable text was found in this PDF. It may be scanned or image-based.'
+          );
+        }
+      } catch (pdfError) {
+        console.error('Tasklyn PDF extraction failed:', pdfError);
+
+        throw new Error(
+          'Could not read this PDF automatically: ' +
+          (pdfError?.message || 'Unknown PDF parsing error')
+        );
+      } finally {
+        if (pdf) {
+          try {
+            await pdf.destroy();
+          } catch (cleanupError) {
+            console.error(
+              'PDF cleanup failed:',
+              cleanupError
+            );
+          }
+        }
+      }
+    } else if (isWord) {
+      const mammoth = await import('mammoth');
+
+      const result = await mammoth.extractRawText({
+        buffer
+      });
+
+      text = String(result.value || '')
+        .trim()
+        .slice(0, MAX_TEXT_LENGTH);
+    } else if (isExcel) {
+      const XLSX = await import('xlsx');
+
+      const workbook = XLSX.read(buffer, {
+        type: 'buffer'
+      });
+
+      text = workbook.SheetNames
+        .map(name => {
+          return XLSX.utils.sheet_to_csv(
+            workbook.Sheets[name]
+          );
+        })
+        .join('\n')
+        .trim()
+        .slice(0, MAX_TEXT_LENGTH);
+    }
+
+    // 4. Prepare the analysis.
     let summary = null;
     let category = 'Other';
     let due_date = null;
@@ -189,13 +231,13 @@ export default async function handler(req, res) {
       'Respond ONLY with valid JSON, without Markdown or text outside the JSON, using exactly this format: ' +
       '{"summary":"A concise, factual summary in American English, no more than 2 sentences",' +
       '"category":"one of: Contracts, Finance, Clients, Other",' +
-      '"due_date":"YYYY-MM-DD if the document clearly states a due date or expiration date, otherwise null"}. ' +
+      '"due_date":"YYYY-MM-DD if the document clearly states a due date or expiration date, otherwise null}. ' +
       'Do not invent facts or dates. Use null when no clear due date is present. ' +
       'Carefully read visible text when an image is provided. The summary must always be in American English.';
 
     let messageContent;
 
-    // 5. Prepare content for Claude.
+    // 5. Prepare the content for Claude.
     if (isImage) {
       const imageBase64 = buffer.toString('base64');
 
@@ -220,12 +262,12 @@ export default async function handler(req, res) {
         text;
     } else {
       summary =
-        'Text could not be extracted automatically from this file. It may be an unsupported format.';
+        'Text could not be extracted automatically from this file. It may be an unsupported format or contain no selectable text.';
       category = 'Other';
       finalStatus = 'needs_review';
     }
 
-    // 6. Send document content to Claude.
+    // 6. Analyze the document using Claude.
     if (messageContent) {
       const aiResponse = await fetch(
         'https://api.anthropic.com/v1/messages',
@@ -251,10 +293,10 @@ export default async function handler(req, res) {
       );
 
       if (!aiResponse.ok) {
-        const errText = await aiResponse.text();
+        const errorText = await aiResponse.text();
 
         throw new Error(
-          `Anthropic API error (${aiResponse.status}): ${errText.slice(0, 500)}`
+          `Anthropic API error (${aiResponse.status}): ${errorText.slice(0, 500)}`
         );
       }
 
@@ -263,7 +305,7 @@ export default async function handler(req, res) {
       const raw =
         data.content?.find(item => item.type === 'text')?.text || '{}';
 
-      // 7. Parse Claude's JSON response.
+      // 7. Parse and validate the AI response.
       try {
         const cleaned = raw
           .replace(/```json|```/gi, '')
@@ -301,14 +343,14 @@ export default async function handler(req, res) {
             'The AI response did not contain a summary.'
           );
         }
-      } catch (parseErr) {
+      } catch (parseError) {
         throw new Error(
-          `Could not parse Anthropic response as valid JSON: ${parseErr.message}`
+          `Could not parse Anthropic response as valid JSON: ${parseError.message}`
         );
       }
     }
 
-    // 8. Save analysis results in Supabase.
+    // 8. Save the result in Supabase.
     const { error: updateError } = await supabase
       .from('documents')
       .update({
@@ -319,7 +361,9 @@ export default async function handler(req, res) {
       })
       .eq('id', documentId);
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      throw updateError;
+    }
 
     return res.status(200).json({
       summary,
@@ -327,8 +371,11 @@ export default async function handler(req, res) {
       due_date,
       status: finalStatus
     });
-  } catch (err) {
-    console.error('Tasklyn document processing error:', err);
+  } catch (error) {
+    console.error(
+      'Tasklyn document processing error:',
+      error
+    );
 
     try {
       await supabase
@@ -345,7 +392,7 @@ export default async function handler(req, res) {
     }
 
     return res.status(500).json({
-      error: err?.message || 'An unexpected error occurred.'
+      error: error?.message || 'An unexpected error occurred.'
     });
   }
 }
