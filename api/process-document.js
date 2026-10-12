@@ -1,5 +1,5 @@
 // ============================================================
-// Tasklyn AI — Server function that analyzes documents
+// Tasklyn AI — Document Processing API
 // Supports PDF, Word, Excel, PNG, JPG, JPEG, and WebP.
 // ============================================================
 
@@ -9,7 +9,9 @@ const SUPABASE_URL = 'https://pzzxmpdwtyhsmjwtapln.supabase.co';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({
+      error: 'Method not allowed'
+    });
   }
 
   const { documentId, filePath, fileType } = req.body || {};
@@ -38,7 +40,7 @@ export default async function handler(req, res) {
   const supabase = createClient(SUPABASE_URL, serviceKey);
 
   try {
-    // 1. Download the file from Supabase Storage.
+    // 1. Download the document from Supabase Storage.
     const { data: signedUrlData, error: signError } = await supabase
       .storage
       .from('documents')
@@ -60,7 +62,7 @@ export default async function handler(req, res) {
 
     const buffer = Buffer.from(await fileResponse.arrayBuffer());
 
-    // 2. Detect the file type.
+    // 2. Detect document type.
     let text = '';
 
     const lowerPath = String(filePath || '').toLowerCase();
@@ -118,37 +120,22 @@ export default async function handler(req, res) {
     // 3. Extract text from PDF, Word, or Excel.
     if (!isImage) {
       if (isPDF) {
-        // PDF parser compatibility for different pdf-parse versions.
+        // Compatible with pdf-parse v1.x.
         try {
           const pdfModule = await import('pdf-parse');
+          const pdfParse = pdfModule.default || pdfModule;
 
-          let parsed;
-
-          if (typeof pdfModule.default === 'function') {
-            parsed = await pdfModule.default(buffer);
-          } else if (typeof pdfModule.pdf === 'function') {
-            parsed = await pdfModule.pdf(buffer);
-          } else if (typeof pdfModule.PDFParse === 'function') {
-            const parser = new pdfModule.PDFParse({
-              data: buffer
-            });
-
-            try {
-              parsed = await parser.getText();
-            } finally {
-              if (typeof parser.destroy === 'function') {
-                await parser.destroy();
-              }
-            }
-          } else {
+          if (typeof pdfParse !== 'function') {
             throw new Error(
-              'Unsupported pdf-parse API. Check the installed package version.'
+              'The installed pdf-parse version does not expose the expected API.'
             );
           }
 
-          text = String(
-            parsed?.text || parsed?.content || ''
-          ).trim();
+          const parsed = await pdfParse(buffer, {
+            max: 0
+          });
+
+          text = String(parsed?.text || '').trim();
 
           if (!text) {
             throw new Error(
@@ -191,7 +178,7 @@ export default async function handler(req, res) {
       text = String(text).trim().slice(0, 12000);
     }
 
-    // 4. Prepare the AI response variables.
+    // 4. Initialize analysis results.
     let summary = null;
     let category = 'Other';
     let due_date = null;
@@ -208,7 +195,7 @@ export default async function handler(req, res) {
 
     let messageContent;
 
-    // 5. Prepare the document content for Claude.
+    // 5. Prepare content for Claude.
     if (isImage) {
       const imageBase64 = buffer.toString('base64');
 
@@ -233,12 +220,12 @@ export default async function handler(req, res) {
         text;
     } else {
       summary =
-        'Text could not be extracted automatically from this file. It may be an unsupported format or contain no selectable text.';
+        'Text could not be extracted automatically from this file. It may be an unsupported format.';
       category = 'Other';
       finalStatus = 'needs_review';
     }
 
-    // 6. Send the document to Claude.
+    // 6. Send document content to Claude.
     if (messageContent) {
       const aiResponse = await fetch(
         'https://api.anthropic.com/v1/messages',
@@ -276,7 +263,7 @@ export default async function handler(req, res) {
       const raw =
         data.content?.find(item => item.type === 'text')?.text || '{}';
 
-      // 7. Parse and validate Claude's JSON response.
+      // 7. Parse Claude's JSON response.
       try {
         const cleaned = raw
           .replace(/```json|```/gi, '')
@@ -321,7 +308,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // 8. Save the result to Supabase.
+    // 8. Save analysis results in Supabase.
     const { error: updateError } = await supabase
       .from('documents')
       .update({
